@@ -1,0 +1,43 @@
+Compile
+=======
+cd ~/hypretrials
+cp /mnt/data/cavity3d_struct_rhiechow_gpu_fixproj_matlabmatch_pvd_atend.cu .
+
+export PETSC_DIR=/home/jd/src/petsc
+export PETSC_ARCH=arch-linux-cuda-amgx-opt
+export CUDA_HOME=/usr/local/cuda
+export PATH="$CUDA_HOME/bin:$PATH"
+hash -r
+
+"$CUDA_HOME/bin/nvcc" -O3 -std=c++17 -ccbin mpicxx \
+  -I"$PETSC_DIR/include" \
+  -I"$PETSC_DIR/$PETSC_ARCH/include" \
+  -c cavity3d_struct_rhiechow_gpu_fixproj_matlabmatch_pvd_atend.cu \
+  -o cavity3d_struct_rhiechow_gpu_fixproj_matlabmatch_pvd_atend.o
+
+mpicxx cavity3d_struct_rhiechow_gpu_fixproj_matlabmatch_pvd_atend.o \
+  -o cavity3d_struct_rhiechow_gpu_fixproj_matlabmatch_pvd_atend \
+  -L"$PETSC_DIR/$PETSC_ARCH/lib" \
+  -Wl,-rpath,"$PETSC_DIR/$PETSC_ARCH/lib" \
+  -L"$CUDA_HOME/lib64" \
+  -lHYPRE -lcudart -lm
+
+Run example
+===========
+mpirun -n 1 ./cavity3d_struct_rhiechow_gpu_fixproj_matlabmatch_pvd_atend \
+  -nx 100 -ny 100 -nz 100 \
+  -re 2000 -dt 1e-3 -nsteps 500 \
+  -vel-maxit 300 -vel-tol 1e-8 \
+  -p-maxit 150 -p-tol 1e-10 \
+  -p-relax-type 1 -p-rap-type 1 \
+  -print-every 20 -monitor 1 \
+  -write-every 20 -write-initial 1 \
+  -output-prefix cavity100_re2000 \
+  -write-vtk 1 -vtk-file cavity100_re2000_final.vtk \
+  -device 0
+
+Behavior
+========
+- Writes all snapshot .vtk files during the run.
+- Creates the .pvd only once, at the very end.
+- The .pvd references snapshot files by basename, so ParaView can open it correctly when the .pvd and .vtk files are in the same folder.
